@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriVision AI | Intelligent Diagnosis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Load all translations from external file -->
+    <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <div class="glass-container">
+        <!-- Language Switcher Bar (buttons built dynamically by JS) -->
+        <div class="lang-bar">
+            <i class="fa-solid fa-globe lang-icon"></i>
+            <span data-i18n="lang_label">Language:</span>
+            <div class="lang-buttons" id="lang-buttons-container"></div>
+        </div>
+
+        <header class="header">
+            <h1><i class="fa-solid fa-leaf text-accent"></i> AgriVision AI</h1>
+            <p data-i18n="subtitle">Upload a leaf image for instant deficiency diagnosis and expert treatment recommendations.</p>
+        </header>
+
+        <main>
+            <form action="/" method="post" enctype="multipart/form-data" class="upload-form">
+                <div class="file-drop-area" id="drop-area">
+                    <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
+                    <h3 data-i18n="drag_title">Drag &amp; Drop your image here</h3>
+                    <p data-i18n="drag_or">or</p>
+                    <label class="custom-file-btn">
+                        <span data-i18n="browse">Browse Files</span>
+                        <input type="file" name="file" id="file" accept="image/*" required onchange="previewText()">
+                    </label>
+                    <p id="file-name" class="file-name-display"></p>
+                </div>
+                <button type="submit" class="analyze-btn">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span data-i18n="analyze_btn">Analyze Plant Health</span>
+                </button>
+            </form>
+
+            {% if result %}
+            <script>
+                const RAW_PLANT = "{{ result.plant_type | lower }}";
+                const RAW_CODE  = "{{ result.deficiency_code }}";
+                const EN_PLANT  = "{{ result.plant_name }}";
+                const EN_COND   = "{{ result.deficiency }}";
+                const EN_REC    = "{{ result.recommendation }}";
+            </script>
+
+            <div class="result-card" id="result-section">
+                <div class="result-header">
+                    <h2><i class="fa-solid fa-microscope" style="color:#ffffff;"></i>
+                        <span data-i18n="report_title"> Diagnostic Report</span>
+                    </h2>
+                </div>
+                <div class="result-content">
+                    <div class="result-image-box">
+                        <img src="{{ result.image_url }}" alt="Uploaded Image" class="result-image">
+                    </div>
+                    <div class="result-details">
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fa-solid fa-seedling"></i>
+                                <span data-i18n="lbl_plant">Plant / Leaf Name</span>
+                            </span>
+                            <span class="detail-value" id="val-plant">{{ result.plant_name }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fa-solid fa-heart-crack text-danger"></i>
+                                <span data-i18n="lbl_condition">Detected Condition</span>
+                            </span>
+                            <span class="detail-value" id="val-condition">{{ result.deficiency }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fa-solid fa-bullseye text-success"></i>
+                                <span data-i18n="lbl_confidence">Confidence</span>
+                            </span>
+                            <span class="detail-value">{{ result.confidence }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="recommendation-box">
+                    <h3><i class="fa-solid fa-prescription-bottle-medical"></i>
+                        <span data-i18n="lbl_rec">Actionable Recommendation</span>
+                    </h3>
+                    <p id="val-recommendation">{{ result.recommendation }}</p>
+                </div>
+                <!-- Download & Print Buttons -->
+            <div class="actions">
+                <a href="#" id="print-link" class="btn btn-primary" target="_blank">
+                    <i class="fas fa-print"></i> <span id="label-print">Print / Save as PDF</span>
+                </a>
+                <a href="/download-report?lang=en" class="btn btn-secondary">
+                    <i class="fas fa-file-pdf"></i> <span id="label-download">Download (English)</span>
+                </a>
+            </div>
+            </div>
+
+            <script>
+                window.onload = function() {
+                    buildLangButtons();
+                    document.getElementById('result-section').scrollIntoView({ behavior: 'smooth' });
+                    applyCurrentLang();
+
+                    // Set print link action
+                    const printLink = document.getElementById('print-link');
+                    if (printLink) {
+                        printLink.onclick = (e) => {
+                            e.preventDefault();
+                            window.open(`/print-report?lang=${currentLang}`, '_blank');
+                        };
+                    }
+                };
+            </script>
+            {% endif %}
+
+            {% if error %}
+            <div class="error-card">
+                <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <script>
+        let currentLang = localStorage.getItem('agrivision_lang') || 'en';
+
+        function buildLangButtons() {
+            const container = document.getElementById('lang-buttons-container');
+            if(!container) return;
+            container.innerHTML = '';
+            LANG_BUTTONS.forEach((lb, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'lang-btn' + (lb.code === currentLang ? ' active' : '');
+                btn.textContent = lb.label;
+                btn.onclick = () => setLang(lb.code);
+                container.appendChild(btn);
+            });
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('agrivision_lang', lang);
+            applyCurrentLang();
+        }
+
+        function applyCurrentLang() {
+            const t = TRANSLATIONS[currentLang] || TRANSLATIONS['en'];
+            // Translate all UI labels
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(t[key] !== undefined) el.textContent = t[key];
+            });
+            // Rebuild buttons to update active state
+            buildLangButtons();
+
+            // Keep the PDF download link synced with current language
+            const pdfLink = document.getElementById('pdf-link'); // This is the old download link, which is now replaced by the new 'actions' div.
+            if(pdfLink) pdfLink.href = '/download-report?lang=' + currentLang;
+
+            // Update new download/print buttons
+            const downloadBtn = document.querySelector('.actions .btn-secondary');
+            if (downloadBtn) {
+                downloadBtn.href = `/download-report?lang=${currentLang}`;
+                if (t.download_btn) downloadBtn.querySelector('span').textContent = t.download_btn;
+            }
+            const printBtn = document.getElementById('print-link');
+            if (printBtn) {
+                if (t.print_btn) printBtn.querySelector('span').textContent = t.print_btn;
+            }
+
+
+            // Translate result VALUES
+            const plantEl = document.getElementById('val-plant');
+            const condEl  = document.getElementById('val-condition');
+            const recEl   = document.getElementById('val-recommendation');
+
+            if(plantEl && typeof RAW_PLANT !== 'undefined') {
+                const key = RAW_PLANT.replace(/ /g,'_').replace(/-/g,'_');
+                plantEl.textContent = (PLANT_NAMES[key] && PLANT_NAMES[key][currentLang]) ? PLANT_NAMES[key][currentLang] : EN_PLANT;
+            }
+            if(condEl && typeof RAW_CODE !== 'undefined') {
+                condEl.textContent = (CONDITIONS[RAW_CODE] && CONDITIONS[RAW_CODE][currentLang]) ? CONDITIONS[RAW_CODE][currentLang] : EN_COND;
+            }
+            if(recEl && typeof RAW_CODE !== 'undefined') {
+                recEl.textContent = (RECS[RAW_CODE] && RECS[RAW_CODE][currentLang]) ? RECS[RAW_CODE][currentLang] : EN_REC;
+            }
+        }
+
+        // Build buttons on initial page load
+        buildLangButtons();
+        applyCurrentLang();
+
+        function previewText() {
+            const input = document.getElementById('file');
+            const display = document.getElementById('file-name');
+            const t = TRANSLATIONS[currentLang] || TRANSLATIONS['en'];
+            if(input.files && input.files[0]) {
+                display.textContent = t.selected_file + input.files[0].name;
+                display.style.opacity = '1';
+                display.style.transform = 'translateY(0)';
+            }
+        }
+
+        const dropArea = document.getElementById('drop-area');
+        dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.classList.add('dragover'); });
+        dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('dragover');
+            const fi = document.getElementById('file');
+            if(e.dataTransfer.files.length) { fi.files = e.dataTransfer.files; previewText(); }
+        });
+    </script>
+</body>
+</html>

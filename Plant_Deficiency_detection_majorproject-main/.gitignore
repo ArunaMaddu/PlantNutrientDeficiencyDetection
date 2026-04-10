@@ -1,0 +1,9 @@
+data/
+__pycache__/
+*.pyc
+models/*.pth
+*.log
+train_out.txt
+torch_out.txt
+pip_out.txt
+pip_torch.txt
